@@ -2,98 +2,115 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>note風エディタ</title>
+  <title>Clipper</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
+    html, body {
+      margin: 0;
+      padding: 16px;
+      font-family: sans-serif;
+      font-size: 16px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
     body {
-      font-family: system-ui, sans-serif;
-      background: #f6f6f6;
-      padding: 40px;
+      outline: none;
     }
 
-    .editor {
-      max-width: 720px;
-      margin: auto;
-      background: white;
-      padding: 24px;
-      border-radius: 8px;
-      line-height: 1.8;
-    }
-
-    .editor h1 {
-      font-size: 28px;
-      margin: 1.5em 0 0.5em;
-    }
-
-    .editor h2 {
-      font-size: 22px;
-      margin: 1.5em 0 0.5em;
-    }
-
-    .editor img {
+    iframe {
+      display: block;
+      margin: 8px 0;
       max-width: 100%;
-      border-radius: 6px;
-      margin: 16px 0;
     }
 
-    .editor iframe {
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      border-radius: 6px;
-      margin: 16px 0;
+    img {
+      display: block;
+      margin: 8px 0;
+      max-width: 100%;
     }
   </style>
 </head>
-<body>
+<body contenteditable="true"></body>
 
-<div class="editor" contenteditable="true" id="editor">
-  <h1></h1>
-  <p></p>
-  <p></p>
-</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 <script>
-const editor = document.getElementById("editor");
+document.body.addEventListener('paste', (e) => {
+  e.preventDefault();
 
-editor.addEventListener("paste", (e) => {
-  const text = e.clipboardData.getData("text");
+  const clipboard = e.clipboardData || window.clipboardData;
+  const items = clipboard.items;
+  const selection = document.getSelection();
+  const range = selection.getRangeAt(0);
 
-  const match = text.match(
-    /https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/
+  // ① 画像があれば画像を優先
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const img = document.createElement('img');
+        img.src = reader.result;
+        range.insertNode(img);
+        range.collapse(false);
+      };
+
+      reader.readAsDataURL(file);
+      return;
+    }
+  }
+
+  // ② テキスト取得
+  const text = clipboard.getData('text/plain');
+
+  // ③ YouTube URL 判定
+  const youtubeMatch = text.match(
+    /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/
   );
 
-  if (!match) return;
+  if (youtubeMatch) {
+    const iframe = document.createElement('iframe');
+    iframe.src = `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+    iframe.width = '560';
+    iframe.height = '315';
+    iframe.frameBorder = '0';
+    iframe.allow =
+      'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    iframe.allowFullscreen = true;
 
-  e.preventDefault(); // 通常の貼り付けを止める
-
-  const videoId = match[1];
-  insertYouTube(videoId);
+    range.insertNode(iframe);
+    range.collapse(false);
+  } else {
+    // ④ 通常テキスト
+    document.execCommand('insertText', false, text);
+  }
 });
-
-function insertYouTube(videoId) {
-  const iframe = document.createElement("iframe");
-  iframe.src = `https://www.youtube.com/embed/${videoId}`;
-  iframe.allowFullscreen = true;
-  iframe.style.width = "100%";
-  iframe.style.aspectRatio = "16 / 9";
-  iframe.style.borderRadius = "6px";
-  iframe.style.margin = "16px 0";
-
-  const range = window.getSelection().getRangeAt(0);
-  range.deleteContents();
-
-  const wrapper = document.createElement("div");
-  wrapper.contentEditable = "false"; // ★超重要
-  wrapper.appendChild(iframe);
-
-  range.insertNode(wrapper);
-
-  // カーソルを次の行へ
-  range.setStartAfter(wrapper);
-  range.collapse(true);
-}
 </script>
-
-
-
-</body>
 </html>
