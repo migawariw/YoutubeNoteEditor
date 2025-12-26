@@ -18,49 +18,47 @@
       outline: none;
     }
 
-    iframe {
-      display: block;
-      margin: 8px 0;
-      max-width: 100%;
-    }
-
     img {
       display: block;
-      margin: 8px 0;
       max-width: 100%;
+      margin: 8px 0;
+    }
+
+    /* YouTube用 */
+    .video {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%;
+      margin: 8px 0;
+    }
+
+    .video iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
     }
   </style>
 </head>
+
 <body contenteditable="true"></body>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 <script>
+const STORAGE_KEY = 'clipper-content';
+
+/* ---------- 復元 ---------- */
+const saved = localStorage.getItem(STORAGE_KEY);
+if (saved) {
+  document.body.innerHTML = saved;
+}
+
+/* ---------- 自動保存 ---------- */
+document.body.addEventListener('input', () => {
+  localStorage.setItem(STORAGE_KEY, document.body.innerHTML);
+});
+
+/* ---------- ペースト処理 ---------- */
 document.body.addEventListener('paste', (e) => {
   e.preventDefault();
 
@@ -69,7 +67,7 @@ document.body.addEventListener('paste', (e) => {
   const selection = document.getSelection();
   const range = selection.getRangeAt(0);
 
-  // ① 画像があれば画像を優先
+  /* ① 画像 */
   for (const item of items) {
     if (item.type.startsWith('image/')) {
       const file = item.getAsFile();
@@ -80,6 +78,7 @@ document.body.addEventListener('paste', (e) => {
         img.src = reader.result;
         range.insertNode(img);
         range.collapse(false);
+        localStorage.setItem(STORAGE_KEY, document.body.innerHTML);
       };
 
       reader.readAsDataURL(file);
@@ -87,30 +86,31 @@ document.body.addEventListener('paste', (e) => {
     }
   }
 
-  // ② テキスト取得
+  /* ② テキスト */
   const text = clipboard.getData('text/plain');
 
-  // ③ YouTube URL 判定
   const youtubeMatch = text.match(
     /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/
   );
 
   if (youtubeMatch) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'video';
+
     const iframe = document.createElement('iframe');
     iframe.src = `https://www.youtube.com/embed/${youtubeMatch[1]}`;
-    iframe.width = '560';
-    iframe.height = '315';
-    iframe.frameBorder = '0';
     iframe.allow =
       'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
     iframe.allowFullscreen = true;
 
-    range.insertNode(iframe);
+    wrapper.appendChild(iframe);
+    range.insertNode(wrapper);
     range.collapse(false);
   } else {
-    // ④ 通常テキスト
     document.execCommand('insertText', false, text);
   }
+
+  localStorage.setItem(STORAGE_KEY, document.body.innerHTML);
 });
 </script>
 </html>
